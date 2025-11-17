@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>俺のサイコロ</title>
+<style>
+body {
+  background-color: #dff3ff;
+  font-family: 'Segoe UI', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start; /* 上詰め */
+  height: 100vh;
+  margin: 0;
+  padding-top: 30px; /* 上部空間を半分に */
+  perspective: 1200px;
+}
+
+img.logo {
+  width: 160px;
+  margin-bottom: 10px;
+}
+
+img.subtitle {
+  width: 270px;
+  margin-bottom: 30px;
+}
+
+.dice-container {
+  width: 120px;
+  height: 120px;
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.dice-face {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(145deg, #ffffff, #e0e0e0);
+  border-radius: 20px;
+  box-shadow: inset -4px -4px 8px rgba(0,0,0,0.1), inset 4px 4px 8px rgba(255,255,255,0.5), 0 6px 16px rgba(0,0,0,0.3);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  justify-items: center;
+  align-items: center;
+}
+
+.dot {
+  width: 20px;
+  height: 20px;
+  background: #333;
+  border-radius: 50%;
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.4), inset -1px -1px 2px rgba(255,255,255,0.3);
+}
+
+.front  { transform: rotateY(0deg) translateZ(60px); }
+.back   { transform: rotateY(180deg) translateZ(60px); }
+.right  { transform: rotateY(90deg) translateZ(60px); }
+.left   { transform: rotateY(-90deg) translateZ(60px); }
+.top    { transform: rotateX(90deg) translateZ(60px); }
+.bottom { transform: rotateX(-90deg) translateZ(60px); }
+
+.roll-button {
+  margin-top: 60px; /* サイコロとボタン間に1行分のスペース */
+  padding: 12px 28px;
+  font-size: 18px;
+  background-color: #4fc3f7;
+  color: white;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.roll-button:hover {
+  background-color: #03a9f4;
+}
+
+.result {
+  margin-top: 20px;
+  font-size: 24px;
+  color: #333;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+</style>
+</head>
+<body>
+<img src="logo_fix_white.png" alt="ロゴ" class="logo">
+<img src="sugoroku_title.png" alt="サブタイトル" class="subtitle">
+
+<div class="dice-container" id="dice">
+  <div class="dice-face front" id="face1"></div>
+  <div class="dice-face back" id="face6"></div>
+  <div class="dice-face right" id="face3"></div>
+  <div class="dice-face left" id="face4"></div>
+  <div class="dice-face top" id="face2"></div>
+  <div class="dice-face bottom" id="face5"></div>
+</div>
+
+<button class="roll-button" id="rollButton">サイコロをふる</button>
+<div class="result" id="result">出た目：1</div>
+
+<script>
+const dice = document.getElementById('dice');
+const result = document.getElementById('result');
+const rollButton = document.getElementById('rollButton');
+
+function createDots(face, number) {
+  face.innerHTML = '';
+  const positions = {
+    1: [[1,1]],
+    2: [[0,0],[2,2]],
+    3: [[0,0],[1,1],[2,2]],
+    4: [[0,0],[0,2],[2,0],[2,2]],
+    5: [[0,0],[0,2],[1,1],[2,0],[2,2]],
+    6: [[0,0],[0,1],[0,2],[2,0],[2,1],[2,2]]
+  };
+  positions[number].forEach(([r,c]) => {
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    dot.style.gridRowStart = r+1;
+    dot.style.gridColumnStart = c+1;
+    face.appendChild(dot);
+  });
+}
+
+for(let i=1;i<=6;i++){
+  createDots(document.getElementById('face'+i), i);
+}
+
+const faceRotations = {
+  1: { x: 0, y: 0 },
+  2: { x: -90, y: 0 },
+  3: { x: 0, y: -90 },
+  4: { x: 0, y: 90 },
+  5: { x: 90, y: 0 },
+  6: { x: 180, y: 0 }
+};
+
+rollButton.addEventListener('click', () => {
+  result.style.opacity = 0;
+  const number = Math.floor(Math.random()*6)+1;
+  const target = faceRotations[number];
+  const duration = 1000;
+  let startTime = null;
+
+  function animate(time){
+    if(!startTime) startTime = time;
+    let progress = (time - startTime)/duration;
+    if(progress > 1) progress = 1;
+
+    // X/Y独立の揺れ、減衰
+    const decay = Math.pow(1 - progress, 1.5);
+    const wiggleX = (Math.random()-0.5)*20*decay;
+    const wiggleY = (Math.random()-0.5)*20*decay;
+
+    const extraX = 3*360*progress;
+    const extraY = 3*360*progress;
+
+    const currentX = target.x*progress + extraX + wiggleX;
+    const currentY = target.y*progress + extraY + wiggleY;
+
+    dice.style.transform = `rotateX(${currentX}deg) rotateY(${currentY}deg)`;
+
+    if(progress < 1){
+      requestAnimationFrame(animate);
+    } else {
+      dice.style.transform = `rotateX(${target.x + 3*360}deg) rotateY(${target.y + 3*360}deg)`;
+      result.textContent = `出た目：${number}`;
+      result.style.opacity = 1;
+    }
+  }
+  requestAnimationFrame(animate);
+});
+</script>
+</body>
+</html>
